@@ -1,0 +1,2 @@
+import { PublicShell } from "../../components/site-shell"; import { RegistrationForm } from "../../components/registration-form";
+export default function Registro(){return <PublicShell><section className="form-page"><div className="container form-page__intro"><span className="eyebrow">BIENVENIDOS AL CLUB</span><h1>Queremos conocerlos</h1><p>Un registro breve para que cada experiencia comience con confianza.</p></div><div className="container form-page__body"><RegistrationForm/></div></section></PublicShell>}
