@@ -17,27 +17,32 @@ test("all public navigation targets exist", async () => {
   }
 });
 
-test("the primary header only offers home and registration", async () => {
+test("the public site presents Pet Sereno and sends functionality behind sign-in", async () => {
   const [shell, home] = await Promise.all([
     read("components/site-shell.tsx"),
     read("app/page.tsx"),
   ]);
   const header = shell.match(/export function SiteHeader[\s\S]*?(?=export function SiteFooter)/)?.[0] ?? "";
   assert.match(header, /href="\/">Inicio/);
-  assert.match(header, /href="\/registro">Registro/);
+  assert.match(header, /href="\/cuenta">Ingresar/);
+  assert.doesNotMatch(header, /href="\/registro"/);
   assert.doesNotMatch(header, /href="\/reservar"/);
-  assert.doesNotMatch(home, /className="hero-actions"/);
+  assert.doesNotMatch(home, /href={`\/reservar/);
+  assert.match(home, /Ingresar para reservar/);
+  assert.match(home, /Las funcionalidades comienzan/);
 });
 
-test("service calls to action preserve the selected service", async () => {
-  const [home, page, form] = await Promise.all([
+test("service calls to action preserve the selected service inside the account", async () => {
+  const [home, legacyPage, accountPage, form] = await Promise.all([
     read("app/page.tsx"),
     read("app/reservar/page.tsx"),
-    read("components/reservation-form.tsx"),
+    read("app/cuenta/reservas/nueva/page.tsx"),
+    read("components/account-reservation-form.tsx"),
   ]);
-  assert.match(home, /\/reservar\?service=/);
-  assert.match(page, /initialServiceTypeId=\{params\.service\}/);
-  assert.match(form, /service\.id===initialServiceTypeId/);
+  assert.match(home, /\/cuenta\/reservas\/nueva\?service=/);
+  assert.match(legacyPage, /redirect\(`\/cuenta\/reservas\/nueva/);
+  assert.match(accountPage, /initialServiceTypeId=\{query\.service\}/);
+  assert.match(form, /service\.id === initialServiceTypeId/);
 });
 
 test("navigation remains functional without the unstable Vinext client router", async () => {

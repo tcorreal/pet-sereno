@@ -6,9 +6,10 @@ import { goBack, navigateTo } from "../lib/client-navigation";
 type PetOption = { id: string; name: string; role: string; canCreate: boolean; members: Array<Record<string, unknown>> };
 type ServiceType = { id: string; name: string; short_description: string };
 
-export function AccountReservationForm({ pets, serviceTypes, initialPetId = "" }: { pets: PetOption[]; serviceTypes: ServiceType[]; initialPetId?: string }) {
+export function AccountReservationForm({ pets, serviceTypes, initialPetId = "", initialServiceTypeId = "" }: { pets: PetOption[]; serviceTypes: ServiceType[]; initialPetId?: string; initialServiceTypeId?: string }) {
   const initial = pets.find((pet) => pet.id === initialPetId && pet.canCreate)?.id ?? pets.find((pet) => pet.canCreate)?.id ?? "";
-  const [data, setData] = useState({ petId: initial, serviceTypeId: serviceTypes[0]?.id ?? "", startDatetime: "", endDatetime: "", notes: "" });
+  const initialService = serviceTypes.some((service) => service.id === initialServiceTypeId) ? initialServiceTypeId : serviceTypes[0]?.id ?? "";
+  const [data, setData] = useState({ petId: initial, serviceTypeId: initialService, startDatetime: "", endDatetime: "", notes: "" });
   const [dropoff, setDropoff] = useState<string[]>([]); const [pickup, setPickup] = useState<string[]>([]);
   const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   const selectedPet = useMemo(() => pets.find((pet) => pet.id === data.petId), [pets, data.petId]);
