@@ -81,7 +81,10 @@ async function crearReserva(
   const end = colombiaDatetime(String(args.fecha_fin ?? ""));
   if (!start || !end) return { ok: false, message: "Faltan la fecha de ingreso o de salida." };
   if (new Date(end) <= new Date(start)) return { ok: false, message: "La fecha de salida debe ser posterior a la de ingreso." };
-  if (new Date(start) <= new Date()) return { ok: false, message: "La reserva debe ser para una fecha futura." };
+  if (new Date(start) <= new Date()) {
+    const nowText = new Intl.DateTimeFormat("es-CO", { timeZone: "America/Bogota", dateStyle: "long", timeStyle: "short" }).format(new Date());
+    return { ok: false, message: `La reserva debe ser para una fecha futura. Ahora mismo en Colombia son: ${nowText}. Pide una fecha posterior a esa, no asumas ni inventes qué día es hoy.` };
+  }
 
   try {
     const result = await createAccountReservation(authUser, {

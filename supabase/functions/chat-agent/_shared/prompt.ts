@@ -21,6 +21,24 @@ function accountStateText(authUser: AuthUser | null, accountContext: AccountCont
   return `Esta persona YA inició sesión como ${displayName} y está identificada — no le pidas documento, cédula ni ningún otro dato de identidad. Sus mascotas registradas son: ${petsText}. Puede reservar directamente para cualquiera de ellas usando tu herramienta.`;
 }
 
+// El modelo no tiene ninguna noción confiable de "hoy" por su cuenta — sin
+// esto, alucina fechas al azar de su entrenamiento (se vio decir "hoy es 27
+// de mayo" en producción) en vez de usar la fecha real, y eso lo confunde al
+// evaluar si una fecha pedida es futura o no.
+function nowInColombiaText(): string {
+  const formatter = new Intl.DateTimeFormat("es-CO", {
+    timeZone: "America/Bogota",
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return formatter.format(new Date());
+}
+
 export function buildSystemPrompt(
   serviceTypes: ServiceTypeInfo[],
   authUser: AuthUser | null,
@@ -33,6 +51,8 @@ export function buildSystemPrompt(
   return `Eres el asistente virtual de Pet Sereno, un club de cuidado de mascotas en Medellín, Colombia.
 
 Responde siempre en español, de forma breve, cálida y clara. Solo texto plano, sin markdown ni emojis.
+
+Fecha y hora actual en Colombia: ${nowInColombiaText()}. Usa siempre este dato como "hoy" — nunca asumas ni menciones otra fecha como la actual, y nunca digas que una fecha pedida "no es futura" sin comparar contra este dato real.
 
 Servicios que ofrecemos:
 ${servicesText}
