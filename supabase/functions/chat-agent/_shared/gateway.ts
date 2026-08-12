@@ -1,5 +1,7 @@
+import type { AuthUser } from "./auth.ts";
+
 // Gateway hacia las funciones RPC api_* que ya expone el proyecto (las mismas
-// que usa lib/supabase.ts en el Worker de Next.js), para reutilizar lógica de
+// que usa lib/account.ts en el Worker de Next.js), para reutilizar lógica de
 // negocio ya probada en vez de tocar tablas directamente y adivinar su forma.
 //
 // Nombres de secret con prefijo PET_SERENO_ porque Supabase reserva el
@@ -43,34 +45,54 @@ export async function fetchServiceTypes(): Promise<ServiceTypeInfo[]> {
   }
 }
 
-export type ReservationPet = { id: string; name: string; species: string };
-export type ReservationCustomer = {
-  first_name: string;
-  last_name: string;
-  pets: ReservationPet[];
+export type AccountPetInfo = {
+  membership_id: string;
+  role: "OWNER" | "RESPONSIBLE";
+  permissions: {
+    can_create_reservations: boolean;
+    can_cancel_reservations: boolean;
+    can_dropoff: boolean;
+    can_pickup: boolean;
+  };
+  pet: { id: string; name: string; species: string };
 };
 
-export async function findCustomerForReservation(documentNumber: string): Promise<ReservationCustomer | null> {
-  return callRpc<ReservationCustomer>("api_find_customer_for_reservation", {
-    p_document_number: documentNumber.replace(/\s/g, ""),
+export type AccountContext = {
+  profile: {
+    id: string;
+    first_name: string | null;
+    last_name: string | null;
+    profile_completed: boolean;
+  };
+  pets: AccountPetInfo[];
+};
+
+// api_account_context también crea el perfil la primera vez que alguien
+// inicia sesión (o lo re-vincula por email si cambió de proveedor de login),
+// así que hay que llamarla antes que cualquier otra RPC de cuenta.
+export async function getAccountContext(authUser: AuthUser): Promise<AccountContext | null> {
+  return callRpc<AccountContext>("api_account_context", {
+    p_auth_subject: authUser.userId,
+    p_email: authUser.email.toLowerCase(),
+    p_full_name: authUser.fullName,
   });
 }
 
-export type CreateReservationInput = {
-  documentNumber: string;
-  petIds: string[];
+export type CreateAccountReservationInput = {
+  petId: string;
   serviceTypeId: string;
   startDatetime: string;
   endDatetime: string;
   notes?: string;
 };
 
-export async function createReservation(
-  input: CreateReservationInput,
-): Promise<{ id: string; reservationNumber: string; status: "PENDING" }> {
-  const result = await callRpc<{ id: string; reservationNumber: string; status: "PENDING" }>(
-    "api_create_reservation",
-    { p_input: { ...input, source: "WEB" } },
+export async function createAccountReservation(
+  authUser: AuthUser,
+  input: CreateAccountReservationInput,
+): Promise<{ id: string; reservationNumber: string; status: string }> {
+  const result = await callRpc<{ id: string; reservationNumber: string; status: string }>(
+    "api_create_account_reservation",
+    { p_auth_subject: authUser.userId, p_input: input },
   );
   if (!result) throw new Error("No pudimos crear la reserva.");
   return result;

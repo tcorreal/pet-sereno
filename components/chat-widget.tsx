@@ -15,10 +15,7 @@ function getSessionId(): string {
   return id;
 }
 
-function functionUrl(): string | null {
-  const base = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return base ? `${base.replace(/\/$/, "")}/functions/v1/chat-agent` : null;
-}
+const CHAT_API_PATH = "/api/chat";
 
 export function ChatWidget() {
   const [open, setOpen] = useState(false);
@@ -32,17 +29,11 @@ export function ChatWidget() {
   useEffect(() => {
     sessionIdRef.current = getSessionId();
 
-    const url = functionUrl();
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !anonKey) return;
-
     // sessionStorage sobrevive recargas de página, así que la memoria del
     // agente también sobrevive — se hidrata el widget con esa historia real
     // al montar, para que la vista no se vea "vacía" mientras el agente
     // igual recuerda todo lo anterior.
-    fetch(`${url}?session_id=${encodeURIComponent(sessionIdRef.current)}&channel=web`, {
-      headers: { apikey: anonKey, authorization: `Bearer ${anonKey}` },
-    })
+    fetch(`${CHAT_API_PATH}?session_id=${encodeURIComponent(sessionIdRef.current)}&channel=web`)
       .then((response) => (response.ok ? response.json() : null))
       .then((data: { messages?: ChatMessage[] } | null) => {
         if (data?.messages?.length) setMessages(data.messages);
@@ -59,26 +50,15 @@ export function ChatWidget() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const url = functionUrl();
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    if (!url || !anonKey) {
-      setError("El chat no está disponible en este momento.");
-      return;
-    }
-
     setMessages((prev) => [...prev, { role: "user", content: text }]);
     setInput("");
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(CHAT_API_PATH, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          apikey: anonKey,
-          authorization: `Bearer ${anonKey}`,
-        },
+        headers: { "content-type": "application/json" },
         body: JSON.stringify({ session_id: sessionIdRef.current, message: text, channel: "web" }),
       });
       const data = (await response.json().catch(() => ({}))) as { reply?: string; error?: string };

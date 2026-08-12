@@ -1,43 +1,24 @@
 import type { ChatTool } from "./ai/types.ts";
-import { createReservation, fetchServiceTypes, findCustomerForReservation } from "./gateway.ts";
-import { getVerifiedDocument, setVerifiedDocument } from "./memory.ts";
+import type { AuthUser } from "./auth.ts";
+import { createAccountReservation, fetchServiceTypes, getAccountContext } from "./gateway.ts";
 
 export const TOOLS: ChatTool[] = [
   {
     type: "function",
     function: {
-      name: "verificar_identidad",
-      description:
-        "Verifica la identidad de la persona por su número de documento antes de poder reservar. Solo llamar cuando el usuario ya escribió su número de documento real en un mensaje anterior — nunca con un valor inventado. Devuelve su nombre y sus mascotas registradas si existe.",
-      parameters: {
-        type: "object",
-        properties: {
-          numero_documento: { type: "string", description: "Número de documento de identidad, solo dígitos, tal como lo escribió el usuario" },
-        },
-        required: ["numero_documento"],
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "crear_reserva",
       description:
-        "Crea una solicitud de reserva (queda pendiente de confirmación del equipo). Solo funciona si la identidad ya fue verificada en esta conversación con verificar_identidad, y solo debe llamarse después de que el usuario confirmó explícitamente el resumen de la reserva.",
+        "Crea una solicitud de reserva (queda pendiente de confirmación del equipo) para una mascota ya registrada en la cuenta de la persona que inició sesión. Solo debe llamarse después de que la persona confirmó explícitamente el resumen de la reserva.",
       parameters: {
         type: "object",
         properties: {
-          mascotas: {
-            type: "array",
-            items: { type: "string" },
-            description: "Nombres de las mascotas a reservar, tal como los devolvió verificar_identidad",
-          },
+          mascota: { type: "string", description: "Nombre de la mascota a reservar, tal como aparece registrada en la cuenta" },
           servicio: { type: "string", description: "Nombre exacto del servicio, tal como aparece en la lista de servicios" },
           fecha_inicio: { type: "string", description: "Fecha y hora de ingreso, formato YYYY-MM-DDTHH:mm" },
           fecha_fin: { type: "string", description: "Fecha y hora de salida, formato YYYY-MM-DDTHH:mm" },
           notas: { type: "string", description: "Nota breve opcional para el equipo" },
         },
-        required: ["mascotas", "servicio", "fecha_inicio", "fecha_fin"],
+        required: ["mascota", "servicio", "fecha_inicio", "fecha_fin"],
       },
     },
   },
@@ -51,68 +32,41 @@ function colombiaDatetime(value: string): string {
   return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(value) ? `${value}-05:00` : value;
 }
 
-// El modelo a veces "alucina" un argumento placeholder (ej. "numero de
-// documento de la persona") en vez de pedirlo cuando el usuario todavía no
-// lo dio. Se valida el formato antes de gastar una llamada RPC, y se le
-// devuelve al modelo una instrucción clara de qué hacer en ese caso. Cuando
-// esto falla (ok:false), el orquestador (index.ts) fuerza la siguiente
-// vuelta SIN herramientas disponibles, para que el modelo esté obligado a
-// responder en texto en vez de insistir con otra llamada (incluso a una
-// función inventada).
-const DOCUMENT_RE = /^\d{5,15}$/;
-
-async function verificarIdentidad(sessionId: string, args: { numero_documento?: string }): Promise<ToolResult> {
-  const documento = String(args.numero_documento ?? "").replace(/\s/g, "");
-  if (!DOCUMENT_RE.test(documento)) {
-    return {
-      ok: false,
-      message:
-        "Ese no es un número de documento válido (debe ser solo dígitos). No lo intentes adivinar: pregúntale a la persona su número de documento en un mensaje de texto normal y espera su respuesta.",
-    };
-  }
-
-  const customer = await findCustomerForReservation(documento);
-  if (!customer) {
-    return {
-      ok: false,
-      message: "No encontramos ningún cliente con ese documento. Sugiere registrarse primero en la página /registro.",
-    };
-  }
-
-  await setVerifiedDocument(sessionId, documento);
-
-  const pets = customer.pets.map((pet) => `${pet.name} (${pet.species})`).join(", ") || "sin mascotas registradas todavía";
-  return {
-    ok: true,
-    message: `Identidad verificada. Cliente: ${customer.first_name} ${customer.last_name}. Mascotas registradas: ${pets}.`,
-  };
-}
-
 async function crearReserva(
-  sessionId: string,
-  args: { mascotas?: string[]; servicio?: string; fecha_inicio?: string; fecha_fin?: string; notas?: string },
+  authUser: AuthUser | null,
+  args: { mascota?: string; servicio?: string; fecha_inicio?: string; fecha_fin?: string; notas?: string },
 ): Promise<ToolResult> {
-  const verifiedDocument = await getVerifiedDocument(sessionId);
-  if (!verifiedDocument) {
+  if (!authUser) {
     return {
       ok: false,
-      message: "No se puede reservar: la identidad todavía no fue verificada en esta conversación. Usa primero verificar_identidad.",
+      message: "No se puede reservar: la persona no inició sesión. Dile que inicie sesión en /cuenta o /inicio antes de reservar — ya no se usa número de documento para esto.",
     };
   }
 
-  const customer = await findCustomerForReservation(verifiedDocument);
-  if (!customer) return { ok: false, message: "No pudimos confirmar el cliente verificado. Pide el número de documento de nuevo." };
+  const context = await getAccountContext(authUser).catch(() => null);
+  if (!context) return { ok: false, message: "No pudimos confirmar la cuenta en este momento. Pide que reintente en un momento." };
+  if (!context.profile.profile_completed) {
+    return {
+      ok: false,
+      message: "Antes de reservar, la persona debe completar su perfil (nombre, documento, teléfono) en /cuenta/completar-perfil.",
+    };
+  }
 
-  const requestedPetNames = (args.mascotas ?? []).map((name) => name.trim().toLowerCase());
-  if (!requestedPetNames.length) return { ok: false, message: "Falta indicar al menos una mascota." };
-  const petIds: string[] = [];
-  for (const name of requestedPetNames) {
-    const match = customer.pets.find((pet) => pet.name.trim().toLowerCase() === name);
-    if (!match) {
-      const valid = customer.pets.map((pet) => pet.name).join(", ") || "ninguna mascota registrada";
-      return { ok: false, message: `No encontramos una mascota llamada "${name}" para este cliente. Mascotas válidas: ${valid}.` };
-    }
-    petIds.push(match.id);
+  const requestedPetName = String(args.mascota ?? "").trim().toLowerCase();
+  if (!requestedPetName) return { ok: false, message: "Falta indicar la mascota." };
+  const match = context.pets.find((p) => p.pet.name.trim().toLowerCase() === requestedPetName);
+  if (!match) {
+    const valid = context.pets.map((p) => p.pet.name).join(", ") || "ninguna mascota registrada todavía";
+    return {
+      ok: false,
+      message: `No encontramos una mascota llamada "${args.mascota}" en la cuenta. Mascotas disponibles: ${valid}. Si falta alguna, se agrega en /cuenta/mascotas/nueva.`,
+    };
+  }
+  if (match.role !== "OWNER" && !match.permissions.can_create_reservations) {
+    return {
+      ok: false,
+      message: `La persona no tiene permiso para crear reservas para ${match.pet.name}. Solo el propietario u otro responsable autorizado puede.`,
+    };
   }
 
   const serviceTypes = await fetchServiceTypes();
@@ -127,11 +81,11 @@ async function crearReserva(
   const end = colombiaDatetime(String(args.fecha_fin ?? ""));
   if (!start || !end) return { ok: false, message: "Faltan la fecha de ingreso o de salida." };
   if (new Date(end) <= new Date(start)) return { ok: false, message: "La fecha de salida debe ser posterior a la de ingreso." };
+  if (new Date(start) <= new Date()) return { ok: false, message: "La reserva debe ser para una fecha futura." };
 
   try {
-    const result = await createReservation({
-      documentNumber: verifiedDocument,
-      petIds,
+    const result = await createAccountReservation(authUser, {
+      petId: match.pet.id,
       serviceTypeId: service.id,
       startDatetime: start,
       endDatetime: end,
@@ -147,7 +101,7 @@ async function crearReserva(
   }
 }
 
-export async function runTool(sessionId: string, name: string, rawArgs: string): Promise<ToolResult> {
+export async function runTool(authUser: AuthUser | null, name: string, rawArgs: string): Promise<ToolResult> {
   let args: Record<string, unknown>;
   try {
     args = JSON.parse(rawArgs || "{}");
@@ -156,10 +110,8 @@ export async function runTool(sessionId: string, name: string, rawArgs: string):
   }
 
   switch (name) {
-    case "verificar_identidad":
-      return verificarIdentidad(sessionId, args);
     case "crear_reserva":
-      return crearReserva(sessionId, args);
+      return crearReserva(authUser, args);
     default:
       return { ok: false, message: `Herramienta desconocida: ${name}. No existe — no la vuelvas a llamar.` };
   }

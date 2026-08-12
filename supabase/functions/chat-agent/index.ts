@@ -1,10 +1,11 @@
 import { corsHeaders, handleCors } from "./_shared/cors.ts";
-import { addMessage, getHistory, getVerifiedDocument, type ChatChannel } from "./_shared/memory.ts";
-import { fetchServiceTypes } from "./_shared/gateway.ts";
+import { addMessage, getHistory, type ChatChannel } from "./_shared/memory.ts";
+import { fetchServiceTypes, getAccountContext } from "./_shared/gateway.ts";
 import { buildSystemPrompt } from "./_shared/prompt.ts";
 import { getChatProvider } from "./_shared/ai/provider.ts";
 import { isRateLimited } from "./_shared/rate-limit.ts";
 import { runTool, TOOLS } from "./_shared/tools.ts";
+import { getAuthUser } from "./_shared/auth.ts";
 import type { ChatMessage } from "./_shared/ai/types.ts";
 
 const MAX_HISTORY = 20;
@@ -72,16 +73,18 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const [history, serviceTypes, verifiedDocument] = await Promise.all([
+    const authUser = getAuthUser(req);
+
+    const [history, serviceTypes, accountContext] = await Promise.all([
       getHistory(sessionId, channel, MAX_HISTORY),
       fetchServiceTypes(),
-      getVerifiedDocument(sessionId),
+      authUser ? getAccountContext(authUser).catch(() => null) : Promise.resolve(null),
     ]);
 
     await addMessage(sessionId, "user", message);
 
     const messages: ChatMessage[] = [
-      { role: "system", content: buildSystemPrompt(serviceTypes, verifiedDocument) },
+      { role: "system", content: buildSystemPrompt(serviceTypes, authUser, accountContext) },
       ...history,
       { role: "user", content: message },
     ];
@@ -123,7 +126,7 @@ Deno.serve(async (req) => {
       // veces incluso a una función inventada que no existe.
       let allSucceeded = true;
       for (const toolCall of result.toolCalls) {
-        const toolResult = await runTool(sessionId, toolCall.function.name, toolCall.function.arguments);
+        const toolResult = await runTool(authUser, toolCall.function.name, toolCall.function.arguments);
         if (!toolResult.ok) allSucceeded = false;
         if (toolResult.reservationNumber) knownReservationNumbers.add(toolResult.reservationNumber);
         messages.push({ role: "tool", content: toolResult.message, tool_call_id: toolCall.id });
