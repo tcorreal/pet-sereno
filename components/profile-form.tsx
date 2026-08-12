@@ -1,0 +1,43 @@
+"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import type { AccountProfile } from "../lib/account";
+import { fetchJson } from "../lib/client-fetch";
+
+export function ProfileForm({ profile, email }: { profile: AccountProfile; email: string }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
+  const [data, setData] = useState<Record<string, string>>({
+    firstName: profile.first_name ?? "", lastName: profile.last_name ?? "", username: profile.username ?? "",
+    phone: profile.phone ?? "", documentType: profile.document_type ?? "CC", documentNumber: profile.document_number ?? "",
+    photoUrl: profile.photo_url ?? "", address: "", city: "Medellín", department: "Antioquia",
+  });
+  const update = (name: string, value: string) => setData((current) => ({ ...current, [name]: value }));
+  return <form className="step-form account-form" onSubmit={async (event) => {
+    event.preventDefault(); setBusy(true); setError(""); setSaved(false);
+    try {
+      await fetchJson("/api/account/profile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }, "No pudimos guardar tu perfil.");
+      setSaved(true); router.push("/cuenta"); router.refresh();
+    } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar tu perfil."); }
+    finally { setBusy(false); }
+  }}>
+    <div className="form-panel__heading"><span className="eyebrow">TU CUENTA</span><h2>Completa tu perfil</h2><p>Estos datos nos permiten identificarte de forma segura y cuidar la comunicación.</p></div>
+    {error && <div className="alert alert--error" role="alert">{error}</div>}{saved && <div className="alert alert--success" role="status">Perfil guardado.</div>}
+    <div className="form-grid">
+      <Field label="Nombre" name="firstName" value={data.firstName} update={update} required/><Field label="Apellidos" name="lastName" value={data.lastName} update={update} required/>
+      <Field label="Nombre de usuario" name="username" value={data.username} update={update} required hint="Ej. @oscarmorales"/><Field label="Correo autenticado" name="email" value={email} update={() => {}} type="email" disabled/>
+      <Field label="Celular" name="phone" value={data.phone} update={update} type="tel" required hint="Ej. +573001234567"/>
+      <label className="field"><span>Tipo de documento</span><select value={data.documentType} onChange={(e) => update("documentType", e.target.value)}><option>CC</option><option>CE</option><option>Pasaporte</option><option>NIT</option></select></label>
+      <Field label="Número de documento" name="documentNumber" value={data.documentNumber} update={update} required/>
+      <Field label="Foto de perfil (URL)" name="photoUrl" value={data.photoUrl} update={update}/>
+      <Field label="Dirección" name="address" value={data.address} update={update}/><Field label="Ciudad" name="city" value={data.city} update={update}/><Field label="Departamento" name="department" value={data.department} update={update}/>
+    </div>
+    <div className="form-actions"><span/><button className="button button--primary" disabled={busy}>{busy ? "Guardando…" : "Guardar y continuar"}</button></div>
+  </form>;
+}
+
+function Field({ label, name, value, update, type = "text", required = false, hint, disabled = false }: { label: string; name: string; value: string; update: (name: string, value: string) => void; type?: string; required?: boolean; hint?: string; disabled?: boolean }) {
+  return <label className="field"><span>{label}{required && <b> *</b>}</span><input name={name} type={type} value={value} onChange={(e) => update(name, e.target.value)} required={required} disabled={disabled}/>{hint && <small>{hint}</small>}</label>;
+}

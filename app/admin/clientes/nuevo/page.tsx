@@ -1,0 +1,2 @@
+import { AdminHeader } from "../../../../components/admin-shell"; import { RegistrationForm } from "../../../../components/registration-form";
+export default function NuevoCliente(){return <><AdminHeader eyebrow="CLIENTES" title="Nuevo cliente y mascota" copy="El mismo modelo y las mismas validaciones del registro público, con origen administrativo."/><div className="admin-form-wrap"><RegistrationForm source="ADMIN"/></div></>}
