@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "./app-link";
 import { fetchJson } from "../lib/client-fetch";
 
 type Pet={id:string;name:string;species:string;breed:string}; type ServiceType={id:string;name:string;short_description:string}; type Customer={first_name:string;last_name:string;pets:Pet[]};

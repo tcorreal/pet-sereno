@@ -1,11 +1,10 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import type { AccountProfile } from "../lib/account";
 import { fetchJson } from "../lib/client-fetch";
+import { navigateTo } from "../lib/client-navigation";
 
 export function ProfileForm({ profile, email }: { profile: AccountProfile; email: string }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -19,7 +18,7 @@ export function ProfileForm({ profile, email }: { profile: AccountProfile; email
     event.preventDefault(); setBusy(true); setError(""); setSaved(false);
     try {
       await fetchJson("/api/account/profile", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }, "No pudimos guardar tu perfil.");
-      setSaved(true); router.push("/cuenta"); router.refresh();
+      setSaved(true); navigateTo("/cuenta");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos guardar tu perfil."); }
     finally { setBusy(false); }
   }}>

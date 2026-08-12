@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink as Link } from "../../../components/app-link";
 import { AdminHeader, DataTable, StatusBadge } from "../../../components/admin-shell";
 import { ConfirmButton } from "../../../components/confirm-button";
 import { listReservations } from "../../../lib/data";

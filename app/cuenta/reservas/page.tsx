@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink as Link } from "../../../components/app-link";
 import { redirect } from "next/navigation";
 import { requireChatGPTUser } from "../../chatgpt-auth";
 import { AccountHeading } from "../../../components/account-shell";

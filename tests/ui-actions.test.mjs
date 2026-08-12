@@ -40,6 +40,27 @@ test("service calls to action preserve the selected service", async () => {
   assert.match(form, /service\.id===initialServiceTypeId/);
 });
 
+test("navigation remains functional without the unstable Vinext client router", async () => {
+  const [link, navigation, sources] = await Promise.all([
+    read("components/app-link.tsx"),
+    read("lib/client-navigation.ts"),
+    Promise.all([
+      read("components/site-shell.tsx"),
+      read("components/account-shell.tsx"),
+      read("components/admin-shell.tsx"),
+      read("components/account-pet-form.tsx"),
+      read("components/account-reservation-form.tsx"),
+      read("components/profile-form.tsx"),
+    ]),
+  ]);
+  assert.match(link, /return <a href={href}/);
+  assert.match(navigation, /window\.location\.assign/);
+  assert.match(navigation, /window\.location\.reload/);
+  for (const source of sources) {
+    assert.doesNotMatch(source, /next\/link|useRouter/);
+  }
+});
+
 test("interactive actions recover from API failures", async () => {
   const [helper, registration, reservation, confirmation, services] = await Promise.all([
     read("lib/client-fetch.ts"),

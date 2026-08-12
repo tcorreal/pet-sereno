@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink as Link } from "./app-link";
 
 export function Logo({ inverse = false }: { inverse?: boolean }) { return <Link href="/" className={`logo ${inverse ? "logo--inverse" : ""}`} aria-label="Pet Sereno, inicio"><span className="logo__mark">PS</span><span><strong>PET SERENO</strong><small>CLUB DE MASCOTAS</small></span></Link>; }
 export function SiteHeader() { return <header className="site-header"><div className="container site-header__inner"><Logo/><nav aria-label="Navegación principal"><Link className="button button--secondary button--small" href="/">Inicio</Link><Link className="button button--primary button--small" href="/registro">Registro</Link></nav></div></header>; }

@@ -1,13 +1,12 @@
 "use client";
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { fetchJson } from "../lib/client-fetch";
+import { goBack, navigateTo } from "../lib/client-navigation";
 
 type PetOption = { id: string; name: string; role: string; canCreate: boolean; members: Array<Record<string, unknown>> };
 type ServiceType = { id: string; name: string; short_description: string };
 
 export function AccountReservationForm({ pets, serviceTypes, initialPetId = "" }: { pets: PetOption[]; serviceTypes: ServiceType[]; initialPetId?: string }) {
-  const router = useRouter();
   const initial = pets.find((pet) => pet.id === initialPetId && pet.canCreate)?.id ?? pets.find((pet) => pet.canCreate)?.id ?? "";
   const [data, setData] = useState({ petId: initial, serviceTypeId: serviceTypes[0]?.id ?? "", startDatetime: "", endDatetime: "", notes: "" });
   const [dropoff, setDropoff] = useState<string[]>([]); const [pickup, setPickup] = useState<string[]>([]);
@@ -21,7 +20,7 @@ export function AccountReservationForm({ pets, serviceTypes, initialPetId = "" }
     event.preventDefault(); setBusy(true); setError("");
     try {
       const result = await fetchJson<{ id: string }>("/api/account/reservations", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ ...data, dropoffProfileIds: dropoff, pickupProfileIds: pickup }) }, "No pudimos crear la reserva.");
-      router.push(`/cuenta/reservas?created=${result.id}`); router.refresh();
+      navigateTo(`/cuenta/reservas?created=${result.id}`);
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos crear la reserva."); }
     finally { setBusy(false); }
   }}>
@@ -36,7 +35,7 @@ export function AccountReservationForm({ pets, serviceTypes, initialPetId = "" }
     </div>
     <div className="authorization-grid"><AuthorizedPeople title="Personas que pueden entregar" members={eligibleDropoff} selected={dropoff} onToggle={(id) => toggle(dropoff, setDropoff, id)}/><AuthorizedPeople title="Personas que pueden recoger" members={eligiblePickup} selected={pickup} onToggle={(id) => toggle(pickup, setPickup, id)}/></div>
     <p className="privacy-note">Si no eliges a nadie y tú tienes el permiso correspondiente, quedarás autorizado automáticamente.</p>
-    <div className="form-actions"><button type="button" className="button button--tertiary" onClick={() => router.back()}>Volver</button><button className="button button--primary" disabled={busy}>{busy ? "Creando solicitud…" : "Solicitar reserva"}</button></div>
+    <div className="form-actions"><button type="button" className="button button--tertiary" onClick={() => goBack("/cuenta/reservas")}>Volver</button><button className="button button--primary" disabled={busy}>{busy ? "Creando solicitud…" : "Solicitar reserva"}</button></div>
   </form>;
 }
 

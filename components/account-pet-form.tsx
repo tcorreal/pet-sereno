@@ -1,10 +1,9 @@
 "use client";
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { fetchJson } from "../lib/client-fetch";
+import { goBack, navigateTo } from "../lib/client-navigation";
 
 export function AccountPetForm() {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [data, setData] = useState<Record<string, string>>({ species: "Perro", sex: "" });
@@ -13,7 +12,7 @@ export function AccountPetForm() {
     event.preventDefault(); setBusy(true); setError("");
     try {
       await fetchJson("/api/account/pets", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(data) }, "No pudimos registrar la mascota.");
-      router.push("/cuenta"); router.refresh();
+      navigateTo("/cuenta");
     } catch (caught) { setError(caught instanceof Error ? caught.message : "No pudimos registrar la mascota."); }
     finally { setBusy(false); }
   }}>
@@ -29,7 +28,7 @@ export function AccountPetForm() {
       <Field label="Peso (kg)" name="weight" value={data.weight} update={update} type="number"/>
       <Field label="Color" name="color" value={data.color} update={update}/><Field label="Foto (URL)" name="photoUrl" value={data.photoUrl} update={update}/>
       <label className="field field--full"><span>Notas</span><textarea value={data.notes ?? ""} onChange={(e) => update("notes", e.target.value)}/></label>
-    </div><div className="form-actions"><button type="button" className="button button--tertiary" onClick={() => router.back()}>Volver</button><button className="button button--primary" disabled={busy}>{busy ? "Guardando…" : "Agregar mascota"}</button></div>
+    </div><div className="form-actions"><button type="button" className="button button--tertiary" onClick={() => goBack("/cuenta")}>Volver</button><button className="button button--primary" disabled={busy}>{busy ? "Guardando…" : "Agregar mascota"}</button></div>
   </form>;
 }
 
