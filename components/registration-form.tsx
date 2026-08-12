@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import Link from "next/link";
+import { AppLink as Link } from "./app-link";
 import { fetchJson } from "../lib/client-fetch";
 
 const steps=["Tus datos","Tu mascota","Confirmación"];

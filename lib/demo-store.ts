@@ -82,7 +82,11 @@ function seed(): DemoStore {
 }
 
 const demoGlobal = globalThis as typeof globalThis & { __petSerenoDemoStore?: DemoStore };
-const store = demoGlobal.__petSerenoDemoStore ??= seed();
+let store: DemoStore;
+
+function demoStore() {
+  return demoGlobal.__petSerenoDemoStore ??= seed();
+}
 
 function customerName(customerId: string) {
   const customer = store.customers.find((item) => item.id === customerId);
@@ -193,6 +197,7 @@ function petDetail(petId: string) {
 }
 
 export async function demoRpc<T>(name: string, params: Json = {}): Promise<T> {
+  store = demoStore();
   let result: unknown;
   switch (name) {
     case "api_list_service_types": result = store.serviceTypes.filter((item) => item.active); break;

@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { AppLink as Link } from "../../../components/app-link";
 import { AdminHeader, StatusBadge } from "../../../components/admin-shell";
 import { listPets } from "../../../lib/data";
 

@@ -17,15 +17,53 @@ test("all public navigation targets exist", async () => {
   }
 });
 
-test("service calls to action preserve the selected service", async () => {
-  const [home, page, form] = await Promise.all([
+test("the public site presents Pet Sereno and sends functionality behind sign-in", async () => {
+  const [shell, home] = await Promise.all([
+    read("components/site-shell.tsx"),
+    read("app/page.tsx"),
+  ]);
+  const header = shell.match(/export function SiteHeader[\s\S]*?(?=export function SiteFooter)/)?.[0] ?? "";
+  assert.match(header, /href="\/">Inicio/);
+  assert.match(header, /href="\/cuenta">Ingresar/);
+  assert.doesNotMatch(header, /href="\/registro"/);
+  assert.doesNotMatch(header, /href="\/reservar"/);
+  assert.doesNotMatch(home, /href={`\/reservar/);
+  assert.match(home, /Ingresar para reservar/);
+  assert.match(home, /Las funcionalidades comienzan/);
+});
+
+test("service calls to action preserve the selected service inside the account", async () => {
+  const [home, legacyPage, accountPage, form] = await Promise.all([
     read("app/page.tsx"),
     read("app/reservar/page.tsx"),
-    read("components/reservation-form.tsx"),
+    read("app/cuenta/reservas/nueva/page.tsx"),
+    read("components/account-reservation-form.tsx"),
   ]);
-  assert.match(home, /\/reservar\?service=/);
-  assert.match(page, /initialServiceTypeId=\{params\.service\}/);
-  assert.match(form, /service\.id===initialServiceTypeId/);
+  assert.match(home, /\/cuenta\/reservas\/nueva\?service=/);
+  assert.match(legacyPage, /redirect\(`\/cuenta\/reservas\/nueva/);
+  assert.match(accountPage, /initialServiceTypeId=\{query\.service\}/);
+  assert.match(form, /service\.id === initialServiceTypeId/);
+});
+
+test("navigation remains functional without the unstable Vinext client router", async () => {
+  const [link, navigation, sources] = await Promise.all([
+    read("components/app-link.tsx"),
+    read("lib/client-navigation.ts"),
+    Promise.all([
+      read("components/site-shell.tsx"),
+      read("components/account-shell.tsx"),
+      read("components/admin-shell.tsx"),
+      read("components/account-pet-form.tsx"),
+      read("components/account-reservation-form.tsx"),
+      read("components/profile-form.tsx"),
+    ]),
+  ]);
+  assert.match(link, /return <a href={href}/);
+  assert.match(navigation, /window\.location\.assign/);
+  assert.match(navigation, /window\.location\.reload/);
+  for (const source of sources) {
+    assert.doesNotMatch(source, /next\/link|useRouter/);
+  }
 });
 
 test("interactive actions recover from API failures", async () => {
