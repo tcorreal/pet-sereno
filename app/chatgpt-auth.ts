@@ -1,5 +1,7 @@
+import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { readAuthSession } from "../lib/auth-session";
 
 export type ChatGPTUser = {
   userId: string;
@@ -14,15 +16,30 @@ const USER_FULL_NAME_HEADER = "oai-authenticated-user-full-name";
 const USER_FULL_NAME_ENCODING_HEADER =
   "oai-authenticated-user-full-name-encoding";
 const PERCENT_ENCODED_UTF8 = "percent-encoded-utf-8";
-const SIGN_IN_PATH = "/signin-with-chatgpt";
-const SIGN_OUT_PATH = "/signout-with-chatgpt";
-const CALLBACK_PATH = "/callback";
+const SIGN_IN_PATH = "/inicio";
+const SIGN_OUT_PATH = "/api/auth/signout";
+const CALLBACK_PATH = "/auth/callback";
+
+type LocalAuthEnv = {
+  LOCAL_TEST_AUTH?: string;
+  LOCAL_TEST_USER_ID?: string;
+  LOCAL_TEST_USER_EMAIL?: string;
+  LOCAL_TEST_USER_NAME?: string;
+};
 
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
+  const session = await readAuthSession();
+  if (session) return {
+    userId: session.userId,
+    email: session.email,
+    fullName: session.fullName,
+    displayName: session.fullName ?? session.email,
+  };
+
   const requestHeaders = await headers();
   const userId = requestHeaders.get(USER_ID_HEADER);
   const email = requestHeaders.get(USER_EMAIL_HEADER);
-  if (!userId || !email) return null;
+  if (!userId || !email) return localTestUser();
 
   const encodedFullName = requestHeaders.get(USER_FULL_NAME_HEADER);
   const fullName =
@@ -34,6 +51,30 @@ export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   return {
     userId,
     displayName: fullName ?? email,
+    email,
+    fullName,
+  };
+}
+
+function localTestUser(): ChatGPTUser | null {
+  if (process.env.NODE_ENV === "production") return null;
+
+  const runtime = env as unknown as LocalAuthEnv;
+  const enabled = runtime.LOCAL_TEST_AUTH ?? process.env.LOCAL_TEST_AUTH;
+  if (enabled !== "true") return null;
+
+  const email = runtime.LOCAL_TEST_USER_EMAIL
+    ?? process.env.LOCAL_TEST_USER_EMAIL
+    ?? "pruebas.local@petsereno.test";
+  const fullName = runtime.LOCAL_TEST_USER_NAME
+    ?? process.env.LOCAL_TEST_USER_NAME
+    ?? "Pruebas Pet Sereno";
+
+  return {
+    userId: runtime.LOCAL_TEST_USER_ID
+      ?? process.env.LOCAL_TEST_USER_ID
+      ?? "local-pet-sereno-test-user",
+    displayName: fullName,
     email,
     fullName,
   };

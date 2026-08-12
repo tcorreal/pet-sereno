@@ -1,5 +1,5 @@
 import vinext from "vinext";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
 
@@ -11,34 +11,37 @@ const { d1, r2 } = hostingConfig;
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 
-const localVars: Record<string, string> = process.env.LOCAL_DEMO_MODE === "true"
-  ? { LOCAL_DEMO_MODE: "true" }
-  : {};
+export default defineConfig(async ({ mode }) => {
+  const modeEnv = loadEnv(mode, process.cwd(), "");
+  const runtimeKeys = [
+    "SUPABASE_URL",
+    "SUPABASE_PUBLISHABLE_KEY",
+    "SUPABASE_APP_TOKEN",
+    "EMAIL_WEBHOOK_URL",
+    "EMAIL_WEBHOOK_SECRET",
+    "EMAIL_FROM_NAME",
+    "LOCAL_DEMO_MODE",
+    "LOCAL_TEST_AUTH",
+    "LOCAL_TEST_USER_ID",
+    "LOCAL_TEST_USER_EMAIL",
+    "LOCAL_TEST_USER_NAME",
+  ] as const;
+  const localVars = Object.fromEntries(runtimeKeys.flatMap((key) => {
+    const value = process.env[key] ?? modeEnv[key];
+    return value ? [[key, value]] : [];
+  }));
+  const localBindingConfig = {
+    main: "./worker/index.ts",
+    compatibility_flags: ["nodejs_compat"],
+    vars: localVars,
+    d1_databases: d1
+      ? [{ binding: d1, database_name: "site-creator-d1", database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID }]
+      : [],
+    r2_buckets: r2
+      ? [{ binding: r2, bucket_name: "site-creator-r2" }]
+      : [],
+  };
 
-const localBindingConfig = {
-  main: "./worker/index.ts",
-  compatibility_flags: ["nodejs_compat"],
-  vars: localVars,
-  d1_databases: d1
-    ? [
-        {
-          binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-        },
-      ]
-    : [],
-  r2_buckets: r2
-    ? [
-        {
-          binding: r2,
-          bucket_name: "site-creator-r2",
-        },
-      ]
-    : [],
-};
-
-export default defineConfig(async () => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= "false";

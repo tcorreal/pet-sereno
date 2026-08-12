@@ -17,19 +17,49 @@ test("all public navigation targets exist", async () => {
   }
 });
 
-test("the public site presents Pet Sereno and sends functionality behind sign-in", async () => {
+test("the public site presents Pet Sereno with separate sign-in and registration", async () => {
   const [shell, home] = await Promise.all([
     read("components/site-shell.tsx"),
     read("app/page.tsx"),
   ]);
   const header = shell.match(/export function SiteHeader[\s\S]*?(?=export function SiteFooter)/)?.[0] ?? "";
-  assert.match(header, /href="\/">Inicio/);
-  assert.match(header, /href="\/cuenta">Ingresar/);
-  assert.doesNotMatch(header, /href="\/registro"/);
+  assert.match(header, /href="\/inicio">Inicio/);
+  assert.match(header, /href="\/registro">Registro/);
   assert.doesNotMatch(header, /href="\/reservar"/);
   assert.doesNotMatch(home, /href={`\/reservar/);
   assert.match(home, /Ingresar para reservar/);
   assert.match(home, /Las funcionalidades comienzan/);
+});
+
+test("authentication supports email, Google and Outlook", async () => {
+  const [form, password, oauth, session] = await Promise.all([
+    read("components/auth-form.tsx"),
+    read("app/api/auth/password/route.ts"),
+    read("app/api/auth/oauth/route.ts"),
+    read("lib/auth-session.ts"),
+  ]);
+  assert.match(form, /Continuar con Google/);
+  assert.match(form, /Continuar con Outlook/);
+  assert.match(form, /Crear cuenta/);
+  assert.match(password, /passwordSignUp/);
+  assert.match(password, /passwordSignIn/);
+  assert.match(oauth, /provider !== "google" && provider !== "azure"/);
+  assert.match(session, /HttpOnly|httpOnly/);
+});
+
+test("profile photos can be selected from the device and stored as media", async () => {
+  const [form, upload, media, hosting] = await Promise.all([
+    read("components/profile-form.tsx"),
+    read("app/api/account/profile/photo/route.ts"),
+    read("app/api/media/profile/[key]/route.ts"),
+    read(".openai/hosting.json"),
+  ]);
+  assert.match(form, /type="file"/);
+  assert.match(form, /image\/jpeg,image\/png,image\/webp/);
+  assert.match(upload, /5 \* 1024 \* 1024/);
+  assert.match(upload, /profileMediaBucket\(\)\.put/);
+  assert.match(media, /x-content-type-options/);
+  assert.equal(JSON.parse(hosting).r2, "MEDIA");
 });
 
 test("service calls to action preserve the selected service inside the account", async () => {
@@ -83,14 +113,20 @@ test("interactive actions recover from API failures", async () => {
 });
 
 test("offers a local demo without changing production data", async () => {
-  const [gateway, demo, example] = await Promise.all([
+  const [gateway, demo, example, auth, vite] = await Promise.all([
     read("lib/supabase.ts"),
     read("lib/demo-store.ts"),
     read(".env.example"),
+    read("app/chatgpt-auth.ts"),
+    read("vite.config.ts"),
   ]);
   assert.match(gateway, /LOCAL_DEMO_MODE/);
   assert.match(gateway, /demoRpc/);
   assert.match(demo, /api_confirm_reservation/);
   assert.match(demo, /api_update_service_status/);
   assert.match(example, /^LOCAL_DEMO_MODE=false$/m);
+  assert.match(example, /^LOCAL_TEST_AUTH=false$/m);
+  assert.match(auth, /process\.env\.NODE_ENV === "production"/);
+  assert.match(auth, /LOCAL_TEST_AUTH/);
+  assert.match(vite, /loadEnv/);
 });
