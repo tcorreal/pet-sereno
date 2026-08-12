@@ -7,7 +7,7 @@ export type CustomerNotification = {
   pet_id: string;
   service_id: string;
   channel: "EMAIL";
-  event: "SERVICE_ACTIVATED" | "SERVICE_CLOSED";
+  event: "SERVICE_ACTIVATED" | "SERVICE_CLOSED" | "RESERVATION_CONFIRMED";
   recipient: string;
   subject: string;
   body_text: string;

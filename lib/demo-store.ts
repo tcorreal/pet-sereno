@@ -24,7 +24,7 @@ type Service = {
 type History = { id: string; service_id: string; old_status: ServiceStatus | null; new_status: ServiceStatus; notes: string; created_at: string };
 type Notification = {
   id: string; customer_id: string; pet_id: string; service_id: string; channel: "EMAIL";
-  event: "SERVICE_ACTIVATED" | "SERVICE_CLOSED"; recipient: string; subject: string; body_text: string;
+  event: "SERVICE_ACTIVATED" | "SERVICE_CLOSED" | "RESERVATION_CONFIRMED"; recipient: string; subject: string; body_text: string;
   status: NotificationStatus; attempt_count: number; provider_message_id: string | null; last_error: string | null; created_at: string;
 };
 type DemoStore = {
@@ -138,12 +138,24 @@ function confirmReservation(reservationId: string) {
   if (reservation.status === "CONFIRMED") return { alreadyConfirmed: true };
   if (reservation.status !== "PENDING") throw new Error("Esta reserva no puede confirmarse en su estado actual.");
   reservation.status = "CONFIRMED";
+  const customer = store.customers.find((item) => item.id === reservation.customer_id)!;
+  const type = serviceType(reservation.service_type_id);
+  const notifications: Notification[] = [];
   const services = reservation.pet_ids.map((petId) => {
     const service: Service = { id: id(), service_number: `PS-DEMO-${String(store.serviceSequence++).padStart(4, "0")}`, reservation_id: reservation.id, customer_id: reservation.customer_id, pet_id: petId, service_type_id: reservation.service_type_id, scheduled_entry_at: reservation.start_datetime, scheduled_exit_at: reservation.end_datetime, status: "SCHEDULED", notes: reservation.notes, actual_entry_at: null, actual_exit_at: null, created_at: iso() };
     store.services.unshift(service); store.history.push({ id: id(), service_id: service.id, old_status: null, new_status: "SCHEDULED", notes: "Servicio creado al confirmar la reserva.", created_at: service.created_at });
+    const animal = pet(petId);
+    const notification: Notification = {
+      id: id(), customer_id: customer.id, pet_id: petId, service_id: service.id, channel: "EMAIL", event: "RESERVATION_CONFIRMED",
+      recipient: customer.email, subject: "Tu reserva en Pet Sereno quedó confirmada",
+      body_text: `Hola ${customer.first_name},\n\nConfirmamos la reserva ${reservation.reservation_number} para ${animal?.name ?? "tu mascota"} (${type?.name ?? "servicio"}).\n\nCon cariño,\nPet Sereno — Club de Mascotas`,
+      status: "PENDING", attempt_count: 0, provider_message_id: null, last_error: null, created_at: iso(),
+    };
+    store.notifications.push(notification);
+    notifications.push(notification);
     return { id: service.id, number: service.service_number, petId };
   });
-  return { services };
+  return { services, notifications };
 }
 
 function updateStatus(serviceId: string, newStatus: ServiceStatus, notes = "") {

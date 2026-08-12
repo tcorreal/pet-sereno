@@ -1,0 +1,6 @@
+project_id = "htafpsdmizrdtktswmjx"
+
+[functions.chat-agent]
+# Endpoint público a propósito (el widget del sitio no requiere login).
+# La protección es CORS + el rate limit propio de la función, no un JWT.
+verify_jwt = false

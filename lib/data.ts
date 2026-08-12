@@ -108,10 +108,20 @@ export function customerDetail(id: string) {
 }
 
 export async function confirmReservation(id: string) {
-  return supabaseRpc<{ alreadyConfirmed?: boolean; services?: { id: string; number: string; petId: string }[] }>(
-    "api_confirm_reservation",
-    { p_reservation_id: id },
-  );
+  const result = await supabaseRpc<{
+    alreadyConfirmed?: boolean;
+    services?: { id: string; number: string; petId: string }[];
+    notifications?: CustomerNotification[];
+  }>("api_confirm_reservation", { p_reservation_id: id });
+
+  if (!result.notifications?.length) return { ...result, emailConfigured: true };
+
+  const delivered = await Promise.all(result.notifications.map((n) => deliverCustomerNotification(n)));
+  return {
+    ...result,
+    notifications: delivered.map((d) => d.notification),
+    emailConfigured: delivered.every((d) => d.configured),
+  };
 }
 
 export async function updateServiceStatus(id: string, status: ServiceStatus, notes?: string) {

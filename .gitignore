@@ -40,3 +40,9 @@ yarn-error.log*
 /.wrangler/
 /outputs/
 /work/
+
+# supabase CLI local cache
+/supabase/.temp/
+
+# local-only tool permissions
+.claude/settings.local.json
