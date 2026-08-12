@@ -17,6 +17,13 @@ export async function passwordSignUp(email: string, password: string, fullName: 
   });
 }
 
+export async function resendSignupConfirmation(email: string, redirectTo: string) {
+  return authRequest<Record<string, never>>(`/auth/v1/resend?redirect_to=${encodeURIComponent(redirectTo)}`, {
+    method: "POST",
+    body: JSON.stringify({ type: "signup", email }),
+  });
+}
+
 export async function userFromAccessToken(accessToken: string) {
   return authRequest<SupabaseUser>("/auth/v1/user", {
     method: "GET",
