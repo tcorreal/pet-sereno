@@ -1,5 +1,6 @@
 import { AppLink as Link } from "./app-link";
 import { chatGPTSignOutPath, type ChatGPTUser } from "../app/chatgpt-auth";
+import { ChatWidget } from "./chat-widget";
 import { Logo } from "./site-shell";
 
 export function AccountShell({ children, user }: { children: React.ReactNode; user: ChatGPTUser }) {
@@ -13,6 +14,7 @@ export function AccountShell({ children, user }: { children: React.ReactNode; us
       <details className="account-user"><summary><span>{user.displayName.slice(0, 1).toUpperCase()}</span><strong>{user.displayName}</strong></summary><div><Link href="/cuenta/perfil">Mi perfil</Link><Link href={chatGPTSignOutPath("/")}>Cerrar sesión</Link></div></details>
     </div></header>
     <main className="account-main">{children}</main>
+    <ChatWidget/>
   </div>;
 }
 

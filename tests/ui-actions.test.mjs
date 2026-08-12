@@ -7,8 +7,9 @@ const read = (path) => readFile(new URL(path, root), "utf8");
 
 test("all public navigation targets exist", async () => {
   const shell = await read("components/site-shell.tsx");
+  const publicShell = await read("components/public-shell.tsx");
   const home = await read("app/page.tsx");
-  const hrefs = [...`${shell}${home}`.matchAll(/href="(\/[^"]*)"/g)]
+  const hrefs = [...`${shell}${publicShell}${home}`.matchAll(/href="(\/[^"]*)"/g)]
     .map((match) => match[1].split(/[?#]/)[0])
     .filter((href) => href !== "/" && !href.startsWith("/admin"));
 
@@ -19,10 +20,10 @@ test("all public navigation targets exist", async () => {
 
 test("the public site presents Pet Sereno with separate sign-in and registration", async () => {
   const [shell, home] = await Promise.all([
-    read("components/site-shell.tsx"),
+    read("components/public-shell.tsx"),
     read("app/page.tsx"),
   ]);
-  const header = shell.match(/export function SiteHeader[\s\S]*?(?=export function SiteFooter)/)?.[0] ?? "";
+  const header = shell.match(/function SiteHeader[\s\S]*?(?=export function PublicShell)/)?.[0] ?? "";
   assert.match(header, /href="\/inicio">Inicio/);
   assert.match(header, /href="\/registro">Registro/);
   assert.doesNotMatch(header, /href="\/reservar"/);

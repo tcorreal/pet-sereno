@@ -1,6 +1,7 @@
 import { AppLink as Link } from "../components/app-link";
 import { listServiceTypes } from "../lib/data";
-import { PublicShell,SectionHeader } from "../components/site-shell";
+import { SectionHeader } from "../components/site-shell";
+import { PublicShell } from "../components/public-shell";
 
 export const dynamic="force-dynamic";
 export default async function Home(){const services=await listServiceTypes() as Record<string,unknown>[];return <PublicShell>
