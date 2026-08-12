@@ -1,8 +1,8 @@
-import { authenticatedUser, apiError } from "../../../../../../lib/api-auth";
+import { adminUser, apiError } from "../../../../../../lib/api-auth";
 import { completeReservationOperation } from "../../../../../../lib/account";
 
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  const user = await authenticatedUser();
+  const user = await adminUser();
   if (user instanceof Response) return user;
   try {
     const body = await request.json() as { operation?: "DROPOFF" | "PICKUP"; code?: string; notes?: string };

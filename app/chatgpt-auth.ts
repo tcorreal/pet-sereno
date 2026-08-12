@@ -27,6 +27,24 @@ type LocalAuthEnv = {
   LOCAL_TEST_USER_NAME?: string;
 };
 
+type AdminEnv = { ADMIN_EMAILS?: string };
+
+// No hay ningún concepto de rol (staff vs. cliente) en la base de datos hoy
+// — /admin usaba el mismo login de clientes sin ninguna distinción, así que
+// cualquier persona que se registrara normalmente tenía acceso completo a
+// gestionar reservas, clientes y mascotas de todos los demás. Esta lista de
+// correos por variable de entorno es el cierre mínimo mientras no exista un
+// rol real en `profiles`.
+function adminAllowlist(): string[] {
+  const runtime = env as unknown as AdminEnv;
+  const raw = runtime.ADMIN_EMAILS ?? process.env.ADMIN_EMAILS ?? "";
+  return raw.split(",").map((entry) => entry.trim().toLowerCase()).filter(Boolean);
+}
+
+export function isAdminUser(user: ChatGPTUser | null): boolean {
+  return Boolean(user && adminAllowlist().includes(user.email.toLowerCase()));
+}
+
 export async function getChatGPTUser(): Promise<ChatGPTUser | null> {
   const session = await readAuthSession();
   if (session) return {
@@ -87,6 +105,13 @@ export async function requireChatGPTUser(
   if (user) return user;
 
   redirect(chatGPTSignInPath(returnTo));
+}
+
+export async function requireAdminUser(returnTo: string): Promise<ChatGPTUser> {
+  const user = await getChatGPTUser();
+  if (!user) redirect(chatGPTSignInPath(returnTo));
+  if (!isAdminUser(user)) redirect("/cuenta");
+  return user;
 }
 
 export function chatGPTSignInPath(returnTo: string): string {

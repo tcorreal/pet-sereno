@@ -2,7 +2,7 @@ export const CUSTOMER_SOURCES = ["ADMIN", "WEB", "WHATSAPP", "API", "IMPORT"] as
 export const RESERVATION_STATUSES = ["DRAFT", "PENDING", "CONFIRMED", "CANCELLED", "NO_SHOW", "COMPLETED"] as const;
 export const SERVICE_STATUSES = ["SCHEDULED", "CHECKED_IN", "IN_SERVICE", "READY_FOR_PICKUP", "CHECKED_OUT", "CANCELLED", "NO_SHOW"] as const;
 export const NOTIFICATION_STATUSES = ["PENDING", "SENDING", "SENT", "FAILED"] as const;
-export const NOTIFICATION_EVENTS = ["SERVICE_ACTIVATED", "SERVICE_CLOSED"] as const;
+export const NOTIFICATION_EVENTS = ["SERVICE_ACTIVATED", "SERVICE_CLOSED", "RESERVATION_CONFIRMED"] as const;
 
 export function normalizePhone(value: string) {
   const digits = value.replace(/\D/g, "");
